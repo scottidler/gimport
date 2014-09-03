@@ -1,3 +1,0 @@
-#!/usr/bin/bash
-
-git archive --format=tar --remote=https://github.com/scottidler/gimport master gimport.py | tar -x --to-command=cat > gimport.py
