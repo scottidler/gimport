@@ -1,11 +1,11 @@
 #!/usr/bin/env python2.7
 
-
 # to use gimport: use wget or curl to download the gimport.py file locally
 # ex. os.system('wget https://github.com/scottidler/gimport/raw/master/gimport.py')
 
 import os
 import re
+import imp
 import sys
 import argparse
 import contextlib
@@ -86,23 +86,29 @@ def divine(giturl, revision):
 
     return c2r.get(commit, None), commit
 
-def clone(gimport_cache, repo_cache, giturl, reponame, refname, commit):
-    print 'clone: '
-    print locals()
+def clone(giturl, reponame, refname, commit, gimport_cache, repo_cache):
     path = os.path.join(gimport_cache, reponame)
     with cd(path, mkdir=True):
         if not os.path.isdir(commit):
             print 'commit=%(commit)s not found in path=%(path)s' % locals()
             run('git clone %(giturl)s %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
-            with cd(commit):
-                run('git checkout %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
+        with cd(commit):
+            run('git clean -x -f -d', stdout=PIPE, stderr=PIPE)
+            run('git checkout %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
     return os.path.join(path, commit)
 
 def gimport(giturl, revision, filepath, imports=None, gimport_cache='.gimport', repo_cache=None):
     reponame = decompose(giturl)
     refname, commit = divine(giturl, revision)
-    path = clone(gimport_cache, repo_cache, giturl, reponame, refname, commit)
-    print locals()
+    path = clone(giturl, reponame, refname, commit, gimport_cache, repo_cache)
+    with cd(path):
+        modname = os.path.splitext(os.path.basename(filepath))[0]
+        module = imp.load_source(modname, filepath)
+        if imports:
+            for import_ in imports:
+                sys.modules['%(modname)s.%(import_)s' % locals()] = module[import_]
+        else:
+            sys.modules[modname] = module
     
 def main(args):
 
