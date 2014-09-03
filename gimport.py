@@ -13,6 +13,8 @@ import subprocess
 
 from subprocess import Popen, PIPE
 
+sys.dont_write_bytecode = True
+
 @contextlib.contextmanager
 def cd(*args, **kwargs):
     mkdir = kwargs.pop('mkdir', True)
