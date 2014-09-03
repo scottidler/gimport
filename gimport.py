@@ -109,6 +109,7 @@ def gimport(giturl, revision, filepath, imports=None, gimport_cache='.gimport', 
                 sys.modules['%(modname)s.%(import_)s' % locals()] = module[import_]
         else:
             sys.modules[modname] = module
+    print sys.modules[modname]
     
 def main(args):
 
