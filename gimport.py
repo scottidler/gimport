@@ -1,5 +1,9 @@
 #!/usr/bin/env python2.7
 
+
+# to use gimport: use wget or curl to download the gimport.py file locally
+# ex. os.system('wget https://github.com/scottidler/gimport/raw/master/gimport.py')
+
 import os
 import re
 import sys
@@ -92,7 +96,7 @@ def clone(gimport_cache, repo_cache, giturl, reponame, refname, commit):
                 run('git checkout %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
     return os.path.join(path, commit)
 
-def gimport(gimport_cache, repo_cache, giturl, revision, filepath, imports):
+def gimport(giturl, revision, filepath, imports=None, gimport_cache='.gimport', repo_cache=None):
     reponame = decompose(giturl)
     refname, commit = divine(giturl, revision)
     path = clone(gimport_cache, repo_cache, giturl, reponame, refname, commit)
