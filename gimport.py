@@ -55,43 +55,48 @@ def decompose(giturl):
     return match.groups()[-1]
 
 def divine(giturl, revision):
+    r2c = {}
+    c2r = {}
     result = run('git ls-remote %(giturl)s' % locals(), stdout=PIPE)[1].strip()
-    print 'result=%(result)s' % locals()
-    refnames2commits = {}
-    commits2refnames = {}
     for line in result.split('\n'):
         commit, refname = line.split('\t')
-        refnames2commits[refname] = commit
-        commits2refnames[commit] = refname
+        r2c[refname] = commit
+        c2r[commit] = refname
 
-    commit = None
     refnames = [
         'refs/heads/' + revision,
         'refs/tags/' + revision,
         revision
     ]
 
+    commit = None
     for refname in refnames:
-        commit = refnames2commits.get(refname, None)
+        commit = r2c.get(refname, None)
         if commit:
             break
 
-    refname = commits2refnames.get(commit, revision)
-    return commit, refname
+    if not commit:
+        commit = revision
 
-def flesh(gimport_cache, repo_cache, giturl, reponame, commit):
-    with cd(os.path.join(gimport_cache, reponame, commit), mkdir=True):
-        if not os.path.isdir(commit):
-            run('git init') 
-            run('git remote add origin %(giturl)s' % locals() )
-            run('git fetch origin %(commit)s' % locals() )
-            run('git clone %(giturl)s %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
+    return c2r.get(commit, None), commit
 
-def gimport(gimport_cache, giturl, revision, filepath, imports):
-    reponame = decompose(giturl)
-    commit,refname = divine(giturl, revision)
+def clone(gimport_cache, repo_cache, giturl, reponame, refname, commit):
+    print 'clone: '
     print locals()
-    #localpath = flesh(gimport_cache, repo_cache, giturl, reponame
+    path = os.path.join(gimport_cache, reponame)
+    with cd(path, mkdir=True):
+        if not os.path.isdir(commit):
+            print 'commit=%(commit)s not found in path=%(path)s' % locals()
+            run('git clone %(giturl)s %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
+            with cd(commit):
+                run('git checkout %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
+    return os.path.join(path, commit)
+
+def gimport(gimport_cache, repo_cache, giturl, revision, filepath, imports):
+    reponame = decompose(giturl)
+    refname, commit = divine(giturl, revision)
+    path = clone(gimport_cache, repo_cache, giturl, reponame, refname, commit)
+    print locals()
     
 def main(args):
 
@@ -101,6 +106,10 @@ def main(args):
         metavar='GIMPORT-CACHE',
         default='.gimport',
         help='root path to store all gimport cached files')
+    parser.add_argument(
+        '--repo-cache',
+        metavar='REPO-CACHE',
+        help='path to cached repos to support fast cloning')
     parser.add_argument(
         '--imports',
         nargs='+',
