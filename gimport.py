@@ -104,12 +104,10 @@ def gimport(giturl, revision, filepath, imports=None, gimport_cache='.gimport', 
     with cd(path):
         modname = os.path.splitext(os.path.basename(filepath))[0]
         module = imp.load_source(modname, filepath)
+
         if imports:
-            for import_ in imports:
-                sys.modules['%(modname)s.%(import_)s' % locals()] = module[import_]
-        else:
-            sys.modules[modname] = module
-    print sys.modules[modname]
+            return [ module[import_] for import_ in imports ]
+        return module
     
 def main(args):
 
@@ -137,7 +135,7 @@ def main(args):
         'filepath',
         help='the filepath inside the git repo')
     ns = parser.parse_args()
-    gimport(**ns.__dict__)
+    print gimport(**ns.__dict__)
 
     return 0
 
