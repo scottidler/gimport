@@ -105,9 +105,7 @@ def gimport(giturl, revision, filepath, imports=None, gimport_cache='.gimport', 
         module = imp.load_source(modname, filepath)
 
         if imports:
-            print 'returning imports=%(imports)s' % locals()
             return [ module[import_] for import_ in imports ]
-        print 'returning module=%(module)s' % locals()
         return module
     
 def main(args):
