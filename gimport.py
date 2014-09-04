@@ -90,11 +90,11 @@ def divine(giturl, revision):
 
     return c2r.get(commit, None), commit
 
-def clone(giturl, reponame, refname, commit, gimport_cache, repo_cache):
+def clone(giturl, reponame, refname, commit, cachepath, mirrorpath):
     mirror = ''
-    if repo_cache:
-        mirror = '--reference %(repo_cache)s/%(reponame)s.git' % locals()
-    path = os.path.join(gimport_cache, reponame)
+    if mirrorpath:
+        mirror = '--reference %(mirrorpath)s/%(reponame)s.git' % locals()
+    path = os.path.join(cachepath, reponame)
     with cd(path, mkdir=True):
         if not os.path.isdir(commit):
             run('git clone %(mirror)s %(giturl)s %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
@@ -103,12 +103,12 @@ def clone(giturl, reponame, refname, commit, gimport_cache, repo_cache):
             run('git checkout %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
     return os.path.join(path, commit)
 
-def gimport(giturl, revision, filepath, imports=None, gimport_cache='.gimport', repo_cache=None):
-    gimport_cache = expand(gimport_cache)
-    repo_cache = expand(repo_cache)
+def gimport(giturl, revision, filepath, imports=None, cachepath='.gimport', mirrorpath=None):
+    cachepath = expand(cachepath)
+    mirrorpath = expand(mirrorpath)
     reponame = decompose(giturl)
     refname, commit = divine(giturl, revision)
-    path = clone(giturl, reponame, refname, commit, gimport_cache, repo_cache)
+    path = clone(giturl, reponame, refname, commit, cachepath, mirrorpath)
     with cd(path):
         modname = os.path.splitext(os.path.basename(filepath))[0]
         module = imp.load_source(modname, filepath)
@@ -121,13 +121,11 @@ def main(args):
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--gimport-cache',
-        metavar='GIMPORT-CACHE',
+        '--cachepath',
         default='.gimport',
-        help='root path to store all gimport cached files')
+        help='path to store all gimport cached files')
     parser.add_argument(
-        '--repo-cache',
-        metavar='REPO-CACHE',
+        '--mirrorpath',
         help='path to cached repos to support fast cloning')
     parser.add_argument(
         '--imports',
