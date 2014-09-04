@@ -1,7 +1,7 @@
 #!/usr/bin/env python2.7
 
 # to use gimport: use wget or curl to download the gimport.py file locally
-# ex. os.system('wget https://github.com/scottidler/gimport/raw/master/gimport.py')
+#ie.  os.system('wget -q https://github.com/scottidler/gimport/raw/master/gimport.py -O gimport.py')
 
 import os
 import re
