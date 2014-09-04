@@ -90,7 +90,6 @@ def clone(giturl, reponame, refname, commit, gimport_cache, repo_cache):
     path = os.path.join(gimport_cache, reponame)
     with cd(path, mkdir=True):
         if not os.path.isdir(commit):
-            print 'commit=%(commit)s not found in path=%(path)s' % locals()
             run('git clone %(giturl)s %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
         with cd(commit):
             run('git clean -x -f -d', stdout=PIPE, stderr=PIPE)
@@ -106,7 +105,9 @@ def gimport(giturl, revision, filepath, imports=None, gimport_cache='.gimport', 
         module = imp.load_source(modname, filepath)
 
         if imports:
+            print 'returning imports=%(imports)s' % locals()
             return [ module[import_] for import_ in imports ]
+        print 'returning module=%(module)s' % locals()
         return module
     
 def main(args):
