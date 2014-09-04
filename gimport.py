@@ -62,6 +62,7 @@ def expand(path):
 def decompose(giturl):
     pattern = '(((ssh|https)://)?([a-zA-Z0-9_.\-]+@)?)([a-zA-Z0-9_.\-]+)([:/]{1,2})([a-zA-Z0-9_.\-\/]+)'
     match = re.search(pattern, giturl)
+    raise Exception('failed to decompose giturl=%(giturl)s; should be complete url to clone, including reponame' % locals() )
     return match.groups()[-1]
 
 def divine(giturl, revision):
@@ -116,6 +117,7 @@ def gimport(giturl, revision, filepath, imports=None, cachepath='.gimport', mirr
         if imports:
             return [ module[import_] for import_ in imports ]
         return module
+    raise Exception('path=%(path)s not found; could not load filepath=%(filepath)s' % locals() )
     
 def main(args):
 
