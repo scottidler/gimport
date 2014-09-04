@@ -55,6 +55,10 @@ def run(*args, **kwargs):
         print stdout
     return exitcode, stdout, stderr
 
+def expand(path):
+    if path:
+        return os.path.join(path)
+
 def decompose(giturl):
     pattern = '(((ssh|https)://)?([a-zA-Z0-9_.\-]+@)?)([a-zA-Z0-9_.\-]+)([:/]{1,2})([a-zA-Z0-9_.\-\/]+)'
     match = re.search(pattern, giturl)
@@ -87,16 +91,21 @@ def divine(giturl, revision):
     return c2r.get(commit, None), commit
 
 def clone(giturl, reponame, refname, commit, gimport_cache, repo_cache):
+    mirror = ''
+    if repo_cache:
+        mirror = '--reference %(repo_cache)s/%(reponame)s.git' % locals()
     path = os.path.join(gimport_cache, reponame)
     with cd(path, mkdir=True):
         if not os.path.isdir(commit):
-            run('git clone %(giturl)s %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
+            run('git clone %(mirror)s %(giturl)s %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
         with cd(commit):
             run('git clean -x -f -d', stdout=PIPE, stderr=PIPE)
             run('git checkout %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
     return os.path.join(path, commit)
 
 def gimport(giturl, revision, filepath, imports=None, gimport_cache='.gimport', repo_cache=None):
+    gimport_cache = expand(gimport_cache)
+    repo_cache = expand(repo_cache)
     reponame = decompose(giturl)
     refname, commit = divine(giturl, revision)
     path = clone(giturl, reponame, refname, commit, gimport_cache, repo_cache)
