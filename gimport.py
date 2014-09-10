@@ -114,7 +114,7 @@ def gimport(repospec, filepath, giturl=None, imports=None, cachepath='.gimport',
         modname = os.path.splitext(os.path.basename(filepath))[0]
         module = imp.load_source(modname, filepath)
     if not persist:
-        run('rm- rf %(path)s' % locals() )
+        run('rm -rf %(path)s' % locals() )
 
     if imports:
         return [ module[import_] for import_ in imports ]
