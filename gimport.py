@@ -104,7 +104,7 @@ def clone(giturl, sep, reponame, refname, commit, cachepath, mirrorpath):
             run('git checkout %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
     return os.path.join(path, commit)
 
-def gimport(repospec, filepath, giturl=None, imports=None, cachepath='.gimport', mirrorpath=None):
+def gimport(repospec, filepath, giturl=None, imports=None, cachepath='.gimport', mirrorpath=None, persist=False):
     cachepath = expand(cachepath)
     mirrorpath = expand(mirrorpath)
     giturl, sep, reponame, revision = decompose(repospec, giturl)
@@ -113,10 +113,12 @@ def gimport(repospec, filepath, giturl=None, imports=None, cachepath='.gimport',
     with cd(path):
         modname = os.path.splitext(os.path.basename(filepath))[0]
         module = imp.load_source(modname, filepath)
+    if not persist:
+        run('rm- rf %(path)s' % locals() )
 
-        if imports:
-            return [ module[import_] for import_ in imports ]
-        return module
+    if imports:
+        return [ module[import_] for import_ in imports ]
+    return module
     raise Exception('path=%(path)s not found; could not load filepath=%(filepath)s' % locals() )
     
 if __name__ == '__main__':
