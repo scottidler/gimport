@@ -7,7 +7,6 @@ import os
 import re
 import imp
 import sys
-import argparse
 import contextlib
 import subprocess
 
@@ -120,7 +119,13 @@ def gimport(giturl, revision, filepath, imports=None, cachepath='.gimport', mirr
         return module
     raise Exception('path=%(path)s not found; could not load filepath=%(filepath)s' % locals() )
     
-def main(args):
+if __name__ == '__main__':
+
+    try:
+        import argparse
+    except:
+        print 'missing argparse; gimport.py can be used as a library without argparse installed'
+        sys.exit(-1)
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -146,7 +151,4 @@ def main(args):
     ns = parser.parse_args()
     print gimport(**ns.__dict__)
 
-    return 0
-
-if __name__ == '__main__':
-    sys.exit(main(sys.argv[1:]) )
+    sys.exit(0)
