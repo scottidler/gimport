@@ -58,17 +58,17 @@ def expand(path):
     if path:
         return os.path.join(path)
 
-def decompose(giturl):
-    pattern = '(((ssh|https)://)?([a-zA-Z0-9_.\-]+@)?)([a-zA-Z0-9_.\-]+)([:/]{1,2})([a-zA-Z0-9_.\-\/]+)'
-    match = re.search(pattern, giturl)
-    if not match:
-        raise Exception('failed to decompose giturl=%(giturl)s; should be complete url to clone, including reponame' % locals() )
-    return match.groups()[-1]
+def decompose(repospec, giturl=None):
+    pattern = '(((((ssh|https)://)?([a-zA-Z0-9_.\-]+@)?)([a-zA-Z0-9_.\-]+))([:/]{1,2}))?([a-zA-Z0-9_.\-\/]+)@?([a-zA-Z0-9_.\-\/]+)?'
+    match = re.search(pattern, repospec)
+    if match:
+        return match.group(2) or giturl, match.group(8), match.group(9), match.group(10) or 'HEAD'
+    raise Exception('decompose failed on repospec=%(repospec)s' % locals() )
 
-def divine(giturl, revision):
+def divine(giturl, sep, reponame, revision):
     r2c = {}
     c2r = {}
-    result = run('git ls-remote %(giturl)s' % locals(), stdout=PIPE)[1].strip()
+    result = run('git ls-remote %(giturl)s%(sep)s%(reponame)s' % locals(), stdout=PIPE)[1].strip()
     for line in result.split('\n'):
         commit, refname = line.split('\t')
         r2c[refname] = commit
@@ -91,25 +91,25 @@ def divine(giturl, revision):
 
     return c2r.get(commit, None), commit
 
-def clone(giturl, reponame, refname, commit, cachepath, mirrorpath):
+def clone(giturl, sep, reponame, refname, commit, cachepath, mirrorpath):
     mirror = ''
     if mirrorpath:
         mirror = '--reference %(mirrorpath)s/%(reponame)s.git' % locals()
     path = os.path.join(cachepath, reponame)
     with cd(path, mkdir=True):
         if not os.path.isdir(commit):
-            run('git clone %(mirror)s %(giturl)s %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
+            run('git clone %(mirror)s %(giturl)s%(sep)s%(reponame)s %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
         with cd(commit):
             run('git clean -x -f -d', stdout=PIPE, stderr=PIPE)
             run('git checkout %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
     return os.path.join(path, commit)
 
-def gimport(giturl, revision, filepath, imports=None, cachepath='.gimport', mirrorpath=None):
+def gimport(repospec, filepath, giturl=None, imports=None, cachepath='.gimport', mirrorpath=None):
     cachepath = expand(cachepath)
     mirrorpath = expand(mirrorpath)
-    reponame = decompose(giturl)
-    refname, commit = divine(giturl, revision)
-    path = clone(giturl, reponame, refname, commit, cachepath, mirrorpath)
+    giturl, sep, reponame, revision = decompose(repospec, giturl)
+    refname, commit = divine(giturl, sep, reponame, revision)
+    path = clone(giturl, sep, reponame, refname, commit, cachepath, mirrorpath)
     with cd(path):
         modname = os.path.splitext(os.path.basename(filepath))[0]
         module = imp.load_source(modname, filepath)
@@ -140,11 +140,11 @@ if __name__ == '__main__':
         nargs='+',
         help='list of imports')
     parser.add_argument(
-        'giturl',
+        '--giturl',
         help='the giturl to be used with git clone')
     parser.add_argument(
-        'revision',
-        help='revision to checkout')
+        'repospec',
+        help='repospec schema is giturl?reponame@revision?')
     parser.add_argument(
         'filepath',
         help='the filepath inside the git repo')
