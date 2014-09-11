@@ -104,6 +104,19 @@ def clone(giturl, sep, reponame, refname, commit, cachepath, mirrorpath):
             run('git checkout %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
     return os.path.join(path, commit)
 
+def rmtree(path, empties=False):
+    try:
+        if empties:
+            run('rmdir ' + path)
+        else:
+            run('rm -rf ' + path)
+        dpath = os.path.dirname(path)
+        if dpath:
+            return rmtree(dpath)
+        return path
+    except:
+        return path
+
 def gimport(repospec, filepath, giturl=None, imports=None, cachepath='.gimport', mirrorpath=None, persist=False):
     cachepath = expand(cachepath)
     mirrorpath = expand(mirrorpath)
@@ -114,7 +127,7 @@ def gimport(repospec, filepath, giturl=None, imports=None, cachepath='.gimport',
         modname = os.path.splitext(os.path.basename(filepath))[0]
         module = imp.load_source(modname, filepath)
     if not persist:
-        run('rm -rf %(path)s' % locals() )
+        rmtree(path)
 
     if imports:
         return [ module[import_] for import_ in imports ]
