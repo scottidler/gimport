@@ -66,8 +66,8 @@ def decompose(repospec, giturl=None):
     raise Exception('decompose failed on repospec=%(repospec)s' % locals() )
 
 def divine(giturl, sep, reponame, revision):
-    r2c = {}
-    c2r = {}
+    r2c = {} # revisions to commits
+    c2r = {} # commits to revisions
     result = run('git ls-remote %(giturl)s%(sep)s%(reponame)s' % locals(), stdout=PIPE)[1].strip()
     for line in result.split('\n'):
         commit, refname = line.split('\t')
@@ -91,18 +91,21 @@ def divine(giturl, sep, reponame, revision):
 
     return c2r.get(commit, None), commit
 
-def clone(giturl, sep, reponame, refname, commit, cachepath, mirrorpath):
+def clone(giturl, sep, reponame, refname, commit, cachepath, mirrorpath, versioning):
     mirror = ''
     if mirrorpath:
         mirror = '--reference %(mirrorpath)s/%(reponame)s.git' % locals()
     path = os.path.join(cachepath, reponame)
-    with cd(path, mkdir=True):
+    repopath = reponame
+    if versioning:
+        repopath = os.path.join(repopath, commit)
+    with cd(cachepath, mkdir=True):
         if not os.path.isdir(commit):
-            run('git clone %(mirror)s %(giturl)s%(sep)s%(reponame)s %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
-        with cd(commit):
+            run('git clone %(mirror)s %(giturl)s%(sep)s%(reponame)s %(repopath)s' % locals(), stdout=PIPE, stderr=PIPE)
+        with cd(repopath):
             run('git clean -x -f -d', stdout=PIPE, stderr=PIPE)
             run('git checkout %(commit)s' % locals(), stdout=PIPE, stderr=PIPE)
-    return os.path.join(path, commit)
+    return os.path.join(cachepath, repopath)
 
 def rmtree(path, empties=False):
     try:
@@ -117,12 +120,12 @@ def rmtree(path, empties=False):
     except:
         return path
 
-def gimport(repospec, filepath, giturl=None, imports=None, cachepath='.gimport', mirrorpath=None, persist=False):
+def gimport(repospec, filepath, giturl=None, imports=None, cachepath='.gimport', mirrorpath=None, versioning=True, persist=False):
     cachepath = expand(cachepath)
     mirrorpath = expand(mirrorpath)
     giturl, sep, reponame, revision = decompose(repospec, giturl)
     refname, commit = divine(giturl, sep, reponame, revision)
-    path = clone(giturl, sep, reponame, refname, commit, cachepath, mirrorpath)
+    path = clone(giturl, sep, reponame, refname, commit, cachepath, mirrorpath, versioning)
     with cd(path):
         modname = os.path.splitext(os.path.basename(filepath))[0]
         module = imp.load_source(modname, filepath)
@@ -157,6 +160,11 @@ if __name__ == '__main__':
     parser.add_argument(
         '--giturl',
         help='the giturl to be used with git clone')
+    parser.add_argument(
+        '--no-versioning',
+        action='store_false',
+        dest='versioning',
+        help='turn versioning off; checkout in reponame rather than reponame/commit')
     parser.add_argument(
         'repospec',
         help='repospec schema is giturl?reponame@revision?')
