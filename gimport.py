@@ -8,14 +8,21 @@ import re
 import imp
 import sys
 import contextlib
-import subprocess
-
 from subprocess import Popen, PIPE
 
 sys.dont_write_bytecode = True
 
+class RepospecDecompositionError(Exception):
+    '''
+    exception when repospec can't be decomposed
+    '''
+    pass
+
 @contextlib.contextmanager
 def cd(*args, **kwargs):
+    '''
+    helper change dir function to be used with 'with' expressions
+    '''
     mkdir = kwargs.pop('mkdir', True)
     verbose = kwargs.pop('verbose', False)
     path = os.path.sep.join(args)
@@ -40,6 +47,9 @@ def cd(*args, **kwargs):
                 print 'cd %s' % prev
 
 def run(*args, **kwargs):
+    '''
+    thin wrapper around Popen; returns exitcode, stdout and stderr
+    '''
     nerf = kwargs.pop('nerf', False)
     shell = kwargs.pop('shell', True)
     verbose = kwargs.pop('verbose', False)
@@ -55,17 +65,26 @@ def run(*args, **kwargs):
     return exitcode, stdout, stderr
 
 def expand(path):
+    '''
+    converts ~ -> /home/%{USER}
+    '''
     if path:
-        return os.path.join(path)
+        return os.path.expanduser(path)
 
 def decompose(repospec, giturl=None):
-    pattern = '(((((ssh|https)://)?([a-zA-Z0-9_.\-]+@)?)([a-zA-Z0-9_.\-]+))([:/]{1,2}))?([a-zA-Z0-9_.\-\/]+)@?([a-zA-Z0-9_.\-\/]+)?'
+    '''
+    decompoes repospec into giturl, sep, reponame and revision
+    '''
+    pattern = r'(((((ssh|https)://)?([a-zA-Z0-9_.\-]+@)?)([a-zA-Z0-9_.\-]+))([:/]{1,2}))?([a-zA-Z0-9_.\-\/]+)@?([a-zA-Z0-9_.\-\/]+)?'
     match = re.search(pattern, repospec)
     if match:
         return match.group(2) or giturl, match.group(8), match.group(9), match.group(10) or 'HEAD'
-    raise Exception('decompose failed on repospec=%(repospec)s' % locals() )
+    raise RepospecDecompositionError(repospec)
 
 def divine(giturl, sep, reponame, revision):
+    '''
+    divines refname and commit from supplied args
+    '''
     r2c = {} # revisions to commits
     c2r = {} # commits to revisions
     result = run('git ls-remote %(giturl)s%(sep)s%(reponame)s' % locals(), stdout=PIPE)[1].strip()
@@ -91,7 +110,10 @@ def divine(giturl, sep, reponame, revision):
 
     return c2r.get(commit, None), commit
 
-def clone(giturl, sep, reponame, refname, commit, cachepath, mirrorpath, versioning):
+def clone(giturl, sep, reponame, commit, cachepath, mirrorpath, versioning):
+    '''
+    wraps clone command with mirroring and caching
+    '''
     mirror = ''
     if mirrorpath:
         mirror = '--reference %(mirrorpath)s/%(reponame)s.git' % locals()
@@ -108,6 +130,9 @@ def clone(giturl, sep, reponame, refname, commit, cachepath, mirrorpath, version
     return os.path.join(cachepath, repopath)
 
 def rmtree(path, empties=False):
+    '''
+    removes a folder path
+    '''
     try:
         if empties:
             run('rmdir ' + path)
@@ -121,11 +146,14 @@ def rmtree(path, empties=False):
         return path
 
 def gimport(repospec, filepath, giturl=None, imports=None, cachepath='.gimport', mirrorpath=None, versioning=True, persist=False):
+    '''
+    main function alows user to import code from a git url
+    '''
     cachepath = expand(cachepath)
     mirrorpath = expand(mirrorpath)
     giturl, sep, reponame, revision = decompose(repospec, giturl)
-    refname, commit = divine(giturl, sep, reponame, revision)
-    path = clone(giturl, sep, reponame, refname, commit, cachepath, mirrorpath, versioning)
+    _, commit = divine(giturl, sep, reponame, revision)
+    path = clone(giturl, sep, reponame, commit, cachepath, mirrorpath, versioning)
     with cd(path):
         modname = os.path.splitext(os.path.basename(filepath))[0]
         module = imp.load_source(modname, filepath)
@@ -133,12 +161,13 @@ def gimport(repospec, filepath, giturl=None, imports=None, cachepath='.gimport',
         rmtree(path)
 
     if imports:
-        return [ module[import_] for import_ in imports ]
+        return [module[import_] for import_ in imports]
     return module
-    raise Exception('path=%(path)s not found; could not load filepath=%(filepath)s' % locals() )
-    
-if __name__ == '__main__':
 
+def main():
+    '''
+    only provided as an easy way to test module; usually used via import
+    '''
     try:
         import argparse
     except:
@@ -175,3 +204,7 @@ if __name__ == '__main__':
     print gimport(**ns.__dict__)
 
     sys.exit(0)
+
+if __name__ == '__main__':
+    main()
+
